@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.89"
+crc = "3.2.1"
