@@ -65,20 +65,34 @@ impl TryFrom<&[u8]> for Png {
     type Error = crate::Error;
 
     fn try_from(value: &[u8]) -> std::result::Result<Self, Self::Error> {
-        let mut header: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let mut reader = BufReader::new(value);
+        let mut header: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+        let mut chunks = Vec::new();
+
         reader.read_exact(&mut header)?;
-        if header != Self::STANDARD_HEADER {
-            bail!("Invalid header {:?}", header)
+
+        if header != Png::STANDARD_HEADER {
+            anyhow::bail!("Invalid header: {:?}", header);
         }
 
-        let mut chunks: Vec<Chunk> = Vec::new();
+        let mut length_buffer: [u8; 4] = [0, 0, 0, 0];
+        while let Ok(()) = reader.read_exact(&mut length_buffer) {
+            let length = u32::from_be_bytes(length_buffer);
 
-        while !reader.buffer().is_empty() {
-            chunks.push(Chunk::try_from(reader.buffer())?);
+            // Data length + 4 byte chunk type + 4 byte crc
+            let chunk_length = (length + 8) as usize;
 
-            let len = chunks.last().unwrap().length();
-            reader.consume(len as usize + 12);
+            let mut chunk_data: Vec<u8> = vec![0; chunk_length];
+            reader.read_exact(&mut chunk_data)?;
+
+            let chunk_bytes: Vec<u8> = length_buffer
+                .iter()
+                .copied()
+                .chain(chunk_data.into_iter())
+                .collect();
+
+            let chunk = Chunk::try_from(chunk_bytes.as_ref())?;
+            chunks.push(chunk);
         }
 
         Ok(Png { chunks })

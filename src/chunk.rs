@@ -46,7 +46,6 @@ impl Chunk {
     }
 
     pub fn data_as_string(&self) -> crate::Result<String> {
-        println!("{:?}", self.data);
         match String::from_utf8(self.data.clone()) {
             Ok(str) => Ok(str),
             Err(_) => bail!("couldn't convert chunk data to string"),
